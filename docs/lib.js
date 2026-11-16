@@ -172,6 +172,31 @@ export function formatDuration(seconds) {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
+/**
+ * Turn a Google API error response into a message that says what to fix.
+ * Google puts the real cause in error.details[].reason (an ErrorInfo entry).
+ */
+export function explainGoogleError(json, status, siteOrigin) {
+  const err = (json && json.error) || {};
+  const info = (err.details || []).find((d) => d && String(d["@type"] || "").endsWith("ErrorInfo")) || {};
+  const reason = info.reason || err.status || `HTTP ${status}`;
+  const fixes = {
+    API_KEY_HTTP_REFERRER_BLOCKED:
+      `This key isn't allowed on this website. In Google Cloud → Credentials → your key → Website restrictions, add ${siteOrigin}/* and save (it can take ~5 minutes to apply).`,
+    API_KEY_SERVICE_BLOCKED:
+      "This key isn't allowed to use the Routes API. In Google Cloud → Credentials → your key → API restrictions, tick \"Routes API\" and save.",
+    SERVICE_DISABLED:
+      "The Routes API isn't switched on for this Google Cloud project. Go to APIs & Services → Library → Routes API → Enable.",
+    BILLING_DISABLED:
+      "Billing isn't set up on this Google Cloud project. Attach a billing account (the free allowance still applies).",
+    API_KEY_INVALID: "Google doesn't recognise this key. Check it was pasted in full, with no spaces.",
+    RATE_LIMIT_EXCEEDED: "The daily request limit has been reached. It resets tomorrow.",
+    RESOURCE_EXHAUSTED: "The daily request limit has been reached. It resets tomorrow.",
+  };
+  const fix = fixes[reason] || err.message || "Google returned an error.";
+  return `${fix} [${reason}]`;
+}
+
 export function transitSummary(route) {
   const parts = [];
   for (const leg of route.legs || []) {

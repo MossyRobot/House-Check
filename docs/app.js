@@ -1,5 +1,5 @@
 import {
-  RADON_BANDS, bookmarkletHref, formatDuration, nextWeekdayAt, parseRadonGrid,
+  RADON_BANDS, bookmarkletHref, explainGoogleError, formatDuration, nextWeekdayAt, parseRadonGrid,
   propertyFromHash, radonClassAt, transitSummary,
 } from "./lib.js";
 
@@ -88,7 +88,10 @@ async function computeRoute(origin, destination, mode) {
     body: JSON.stringify(body),
   });
   const json = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error((json.error && json.error.message) || `Google returned HTTP ${r.status}`);
+  if (!r.ok) {
+    console.warn("Google Routes API error", r.status, json);
+    throw new Error(explainGoogleError(json, r.status, location.origin));
+  }
   const route = (json.routes || [])[0];
   const v = route
     ? { seconds: parseInt(route.duration, 10), meters: route.distanceMeters || 0,

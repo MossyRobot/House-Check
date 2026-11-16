@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  bookmarkletHref, extractListing, formatDuration, nextWeekdayAt, parseRadonGrid,
+  bookmarkletHref, explainGoogleError, extractListing, formatDuration, nextWeekdayAt, parseRadonGrid,
   propertyFromHash, radonClassAt, transitSummary, wgs84ToBng,
 } from "../docs/lib.js";
 
@@ -119,4 +119,15 @@ test("formatting helpers", () => {
     { transitDetails: { transitLine: { name: "GWR", vehicle: { type: "HEAVY_RAIL" } } } },
   ] }] };
   assert.equal(transitSummary(route), "Bus 5 → Train");
+});
+
+test("explainGoogleError gives a fix for known reasons", () => {
+  const blocked = { error: { code: 403, status: "PERMISSION_DENIED", message: "Requests from referer are blocked.",
+    details: [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason: "API_KEY_HTTP_REFERRER_BLOCKED" }] } };
+  const msg = explainGoogleError(blocked, 403, "https://mossyrobot.github.io");
+  assert.match(msg, /https:\/\/mossyrobot\.github\.io\/\*/);
+  assert.match(msg, /\[API_KEY_HTTP_REFERRER_BLOCKED\]$/);
+  const unknown = explainGoogleError({ error: { status: "PERMISSION_DENIED", message: "Something odd" } }, 403, "x");
+  assert.equal(unknown, "Something odd [PERMISSION_DENIED]");
+  assert.equal(explainGoogleError({}, 500, "x"), "Google returned an error. [HTTP 500]");
 });
