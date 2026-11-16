@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>House Check</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+  <style>
+    :root {
+      --bg: #f6f5f2; --card: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --line: #e3e1dc;
+      --accent: #2f6f5e; --warn-bg: #fff4d6; --warn: #7a5a00; --error: #b3261e;
+      --low: #e3f2e8; --low-text: #1e5e36; --mid: #fff1cc; --mid-text: #7a5a00; --high: #fde2df; --high-text: #8c1d18;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161618; --card: #202023; --text: #ececee; --muted: #a0a0a8; --line: #333338;
+        --accent: #7cc4ad; --warn-bg: #3a3215; --warn: #f2d27a; --error: #ff8a80;
+        --low: #1d3326; --low-text: #9fdcb5; --mid: #3a3215; --mid-text: #f2d27a; --high: #3d1d1b; --high-text: #ffb4ab;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    h2 { font-size: 1.15rem; margin: 0 0 8px; }
+    a { color: var(--accent); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+    .muted { color: var(--muted); }
+    .small { font-size: 0.875rem; }
+    .warn { background: var(--warn-bg); color: var(--warn); padding: 8px 12px; border-radius: 8px; }
+    .error { color: var(--error); font-size: 0.875rem; }
+    .radon { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: 10px; }
+    .radon-class { font-weight: 700; font-size: 1.25rem; white-space: nowrap; }
+    .radon-low { background: var(--low); color: var(--low-text); }
+    .radon-affected { background: var(--mid); color: var(--mid-text); }
+    .radon-high { background: var(--high); color: var(--high-text); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 8px 8px 0; border-top: 1px solid var(--line); }
+    th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); border-top: 0; }
+    form.row { display: flex; gap: 8px; flex-wrap: wrap; }
+    input[type=text], input[type=password] { flex: 1 1 180px; padding: 8px 10px; font: inherit; color: var(--text);
+      background: var(--bg); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+    button, .button { padding: 8px 14px; font: inherit; border-radius: 8px; border: 1px solid var(--accent);
+      background: var(--accent); color: var(--card); cursor: pointer; text-decoration: none; display: inline-block; }
+    button.secondary, label.secondary { background: transparent; color: var(--accent); }
+    button.link { background: none; border: 0; color: var(--accent); padding: 0 0 0 8px; text-decoration: underline; }
+    ul.places { list-style: none; padding: 0; margin: 0 0 12px; }
+    ul.places li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+    ul.places li:first-child { border-top: 0; }
+    .bookmarklet { font-weight: 600; cursor: grab; }
+    details summary { cursor: pointer; font-weight: 600; }
+    footer { margin-top: 32px; font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>🏠 House Check</h1>
+  <p class="muted">Radon risk and journey times for a property.</p>
+
+  <div id="property"></div>
+  <div id="journeys"></div>
+
+  <section class="card" id="search">
+    <h2 id="search-title">Check a property</h2>
+    <p>Open a house on Rightmove and click the <strong>House check</strong> bookmark. Or enter a postcode:</p>
+    <form class="row" id="postcode-form">
+      <input type="text" id="postcode" placeholder="e.g. SW1A 1AA" autocomplete="postal-code" aria-label="Postcode">
+      <button type="submit">Check</button>
+    </form>
+    <p class="error" id="postcode-msg" aria-live="polite"></p>
+  </section>
+
+  <section class="card">
+    <h2>Saved places</h2>
+    <p class="small muted">Saved in this browser only. Use a postcode or full address.</p>
+    <ul class="places" id="places-list"></ul>
+    <form class="row" id="place-form">
+      <input type="text" id="place-name" placeholder="Name, e.g. My work" aria-label="Place name" required>
+      <input type="text" id="place-address" placeholder="Postcode or address" aria-label="Place address" required>
+      <button type="submit">Add</button>
+    </form>
+    <p class="small">
+      <button type="button" class="link" id="export-places" style="padding-left:0">Export</button>
+      <label class="link small" style="margin-left:8px;cursor:pointer;color:var(--accent);text-decoration:underline">
+        Import<input type="file" id="import-places" accept="application/json" hidden></label>
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Setup</h2>
+    <p>Drag this button onto your bookmarks bar (press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> if the bar is hidden):</p>
+    <p><a class="button bookmarklet" id="bookmarklet" href="#">House check</a></p>
+    <p class="small muted">Then open any house on Rightmove and click the bookmark. The results open in a new tab.</p>
+    <details>
+      <summary>Settings</summary>
+      <form class="row" id="key-form" style="margin-top:8px">
+        <input type="password" id="key-input" placeholder="Google Maps API key (optional override)" aria-label="Google Maps API key">
+        <button type="submit" class="secondary">Save</button>
+      </form>
+      <p class="small muted" id="key-status"></p>
+    </details>
+  </section>
+
+  <footer>
+    Radon: BGS/UKHSA Indicative Atlas of Radon in Great Britain, contains data © UKRI and Crown copyright,
+    Open Government Licence. Each 1 km square shows the highest class found within it. Journeys: Google Maps.
+    Postcodes: postcodes.io (Royal Mail / ONS data).
+  </footer>
+</main>
+<script src="config.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
